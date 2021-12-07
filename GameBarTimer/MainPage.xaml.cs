@@ -28,6 +28,8 @@ namespace GameBarTimer
     /// </summary>
     public sealed partial class MainPage : Page, INotifyPropertyChanged
     {
+        private static bool _isTimerDetached = false;
+
         private string _countdownHours;
         public string CountdownHours
         {
@@ -77,7 +79,6 @@ namespace GameBarTimer
             CountdownHours = remainingHours.ToString();
             CountdownMinutes = remainingMinutes.ToString().PadLeft(2, '0');
             CountdownSeconds = remainingSeconds.ToString().PadLeft(2, '0');
-
         }
 
         protected override void OnNavigatedTo(NavigationEventArgs e)
@@ -86,14 +87,23 @@ namespace GameBarTimer
             {
                 var widget = e.Parameter as XboxGameBarWidget;
                 if (widget != null)
+                {
                     widget.VisibleChanged += Widget_VisibleChanged;
+                }
             }
         }
 
         private void Widget_VisibleChanged(XboxGameBarWidget sender, object args)
         {
-            Debug.WriteLine("Visibility is " + sender.Visible);
-
+            if(sender.Visible && _isTimerDetached)
+            {
+                Timer.OnSecondElapse += Timer_OnSecondElapse;
+            }
+            else
+            {
+                Timer.OnSecondElapse -= Timer_OnSecondElapse;
+                _isTimerDetached = true;
+            }
         }
 
         public void StartTimerBtn_Click(object sender, RoutedEventArgs e)
@@ -101,10 +111,16 @@ namespace GameBarTimer
             int.TryParse(HourInputTextBox.Text, out int hours);
             int.TryParse(MinuteInputTextBox.Text, out int minutes);
 
+            if (hours == 0 && minutes == 0)
+            {
+                return;
+            }
+
             Timer.Start(hours, minutes);
 
             TimerInputPanel.Visibility = Visibility.Collapsed;
             CountDownStatusPanel.Visibility = Visibility.Visible;
+            StartTimerBtn.Visibility = Visibility.Collapsed;
 
             StatusTextBlock.Text = "Running";
         }

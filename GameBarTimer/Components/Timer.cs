@@ -11,7 +11,7 @@ namespace GameBarTimer.Components
     public static class Timer
     {
         private static readonly string TIMER_DURATION_SETTING_KEY = "timerDuration";
-        private static readonly string TIMER_SUSPEND_TIMESTAMP_SETTINGS_KEY = "timerSuspendTimestamp";
+        private static readonly string TIMER_SUSPEND_TIMESTAMP_SETTING_KEY = "timerSuspendTimestamp";
 
         private static DispatcherTimer _dispatcherTimer;
         private static int _durationInSeconds;
@@ -31,32 +31,78 @@ namespace GameBarTimer.Components
 
         private static void App_Resuming(object sender, object e)
         {
-            throw new NotImplementedException();
+            if(_durationInSeconds == default)
+            {
+                var isTimerDurationExists = ApplicationData.Current.LocalSettings.Values.TryGetValue(TIMER_DURATION_SETTING_KEY, out var timerDurationInSeconds);
+                if (!isTimerDurationExists)
+                {
+                    Stop();
+                    return;
+                }
+
+                _durationInSeconds = Convert.ToInt32(timerDurationInSeconds);
+            }
+
+            var isSuspendTimestampExists = ApplicationData.Current.LocalSettings.Values.TryGetValue(TIMER_SUSPEND_TIMESTAMP_SETTING_KEY, out var suspendTimestampInSeconds);
+            if(!isSuspendTimestampExists)
+            {
+                Stop();
+                return;
+            }
+
+            var suspendDateTime = DateTimeOffset.FromUnixTimeSeconds((long)suspendTimestampInSeconds);
+            var elapsedSecondsCount = DateTimeOffset.Now.Subtract(suspendDateTime).TotalSeconds;
+
+            var remainingDurationInSeconds = _durationInSeconds - elapsedSecondsCount;
+            var remainingHours = (int)remainingDurationInSeconds / 3600;
+            var remainingMinutes = (int)(remainingDurationInSeconds - (remainingHours * 60)) / 60;
+            var remainingSeconds = (int)remainingDurationInSeconds % 60;
+
+            Start(remainingHours, remainingMinutes, remainingSeconds);
         }
 
         private static void App_Suspending(object sender, Windows.ApplicationModel.SuspendingEventArgs e)
         {
             ApplicationData.Current.LocalSettings.Values[TIMER_DURATION_SETTING_KEY] = _durationInSeconds;
-            ApplicationData.Current.LocalSettings.Values[TIMER_SUSPEND_TIMESTAMP_SETTINGS_KEY] = DateTime.Now.Ticks;
+            ApplicationData.Current.LocalSettings.Values[TIMER_SUSPEND_TIMESTAMP_SETTING_KEY] = DateTimeOffset.Now.ToUnixTimeSeconds();
         }
 
-        public static void Start(int hours, int minutes)
+        public static void Start(int hours, int minutes, int seconds = 0)
         {
+            if(hours == 0 && minutes == 0)
+            {
+                throw new InvalidOperationException("Duration should be at least a minute");
+            }
+
             CreateDispatcherTimerIfNotExists();
+            ClearSavedTimerState();
 
             _durationInSeconds = hours * 3600 + minutes * 60;
+
             _remainingHours = hours;
             _remainingMinutes = minutes;
-            _remainingSeconds = 59;
+            _remainingSeconds = seconds == 0 ? 59 : seconds;
 
             _dispatcherTimer.Start();
+            OnSecondElapse?.Invoke(_remainingHours, _remainingMinutes, _remainingSeconds);
         }
 
         public static void Stop()
         {
             _dispatcherTimer.Stop();
+
             Application.Current.Suspending -= App_Suspending;
             Application.Current.Resuming -= App_Resuming;
+
+            ClearSavedTimerState();
+
+            OnTimerStop?.Invoke();
+        }
+
+        private static void ClearSavedTimerState()
+        {
+            ApplicationData.Current.LocalSettings.Values.Remove(TIMER_DURATION_SETTING_KEY);
+            ApplicationData.Current.LocalSettings.Values.Remove(TIMER_SUSPEND_TIMESTAMP_SETTING_KEY);
         }
 
         private static void CreateDispatcherTimerIfNotExists()
@@ -94,13 +140,13 @@ namespace GameBarTimer.Components
                 _remainingSeconds = 59;
             }
 
-            OnSecondElapse.Invoke(_remainingHours, _remainingMinutes, _remainingSeconds);
+            OnSecondElapse?.Invoke(_remainingHours, _remainingMinutes, _remainingSeconds);
         }
 
         private static void FinishTimer()
         {
             _dispatcherTimer.Stop();
-            OnTimerFinish.Invoke();
+            OnTimerFinish?.Invoke();
         }
     }
 }
