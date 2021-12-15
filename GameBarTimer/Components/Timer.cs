@@ -31,7 +31,7 @@ namespace GameBarTimer.Components
 
         private static void App_Resuming(object sender, object e)
         {
-            if(_durationInSeconds == default)
+            if (_durationInSeconds == default)
             {
                 var isTimerDurationExists = ApplicationData.Current.LocalSettings.Values.TryGetValue(TIMER_DURATION_SETTING_KEY, out var timerDurationInSeconds);
                 if (!isTimerDurationExists)
@@ -44,7 +44,7 @@ namespace GameBarTimer.Components
             }
 
             var isSuspendTimestampExists = ApplicationData.Current.LocalSettings.Values.TryGetValue(TIMER_SUSPEND_TIMESTAMP_SETTING_KEY, out var suspendTimestampInSeconds);
-            if(!isSuspendTimestampExists)
+            if (!isSuspendTimestampExists)
             {
                 Stop();
                 return;
@@ -63,13 +63,18 @@ namespace GameBarTimer.Components
 
         private static void App_Suspending(object sender, Windows.ApplicationModel.SuspendingEventArgs e)
         {
+            SaveTimerState();
+        }
+
+        private static void SaveTimerState()
+        {
             ApplicationData.Current.LocalSettings.Values[TIMER_DURATION_SETTING_KEY] = _durationInSeconds;
             ApplicationData.Current.LocalSettings.Values[TIMER_SUSPEND_TIMESTAMP_SETTING_KEY] = DateTimeOffset.Now.ToUnixTimeSeconds();
         }
 
         public static void Start(int hours, int minutes, int seconds = 0)
         {
-            if(hours == 0 && minutes == 0)
+            if (hours == 0 && minutes == 0)
             {
                 throw new InvalidOperationException("Duration should be at least a minute");
             }
@@ -81,7 +86,7 @@ namespace GameBarTimer.Components
 
             _remainingHours = hours;
             _remainingMinutes = minutes;
-            _remainingSeconds = seconds == 0 ? 59 : seconds;
+            _remainingSeconds = seconds;
 
             _dispatcherTimer.Start();
             OnSecondElapse?.Invoke(_remainingHours, _remainingMinutes, _remainingSeconds);
@@ -97,6 +102,15 @@ namespace GameBarTimer.Components
             ClearSavedTimerState();
 
             OnTimerStop?.Invoke();
+        }
+
+        public static void Pause()
+        {
+            _dispatcherTimer.Stop();
+            SaveTimerState();
+
+            Application.Current.Suspending -= App_Suspending;
+            Application.Current.Resuming -= App_Resuming;
         }
 
         private static void ClearSavedTimerState()
@@ -119,7 +133,7 @@ namespace GameBarTimer.Components
 
         private static void DispatcherTimer_Tick(object sender, object e)
         {
-            _remainingSeconds = Math.Max(_remainingSeconds - 1, 0);
+            _remainingSeconds = _remainingSeconds - 1;
 
             if (_remainingSeconds == 0 && _remainingMinutes == 0 && _remainingHours == 0)
             {
@@ -127,11 +141,11 @@ namespace GameBarTimer.Components
                 return;
             }
 
-            if (_remainingSeconds == 0)
+            if (_remainingSeconds == -1)
             {
-                _remainingMinutes = Math.Max(_remainingMinutes - 1, 0);
+                _remainingMinutes = _remainingMinutes - 1;
 
-                if (_remainingMinutes == 0)
+                if (_remainingMinutes == -1)
                 {
                     _remainingHours = Math.Max(_remainingHours - 1, 0);
                     _remainingMinutes = 59;
