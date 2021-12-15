@@ -30,6 +30,9 @@ namespace GameBarTimer
         public App()
         {
             this.InitializeComponent();
+
+            this.RequestedTheme = ApplicationTheme.Dark;
+
             this.Suspending += OnSuspending;
         }
 

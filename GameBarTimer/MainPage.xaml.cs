@@ -63,6 +63,17 @@ namespace GameBarTimer
             }
         }
 
+        private bool _isTimerRunning;
+
+        public bool IsTimerRunning
+        {
+            get { return _isTimerRunning; }
+            set
+            {
+                _isTimerRunning = value;
+                RaiseNotifyPropertyChanged();
+            }
+        }
 
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -70,8 +81,22 @@ namespace GameBarTimer
         public MainPage()
         {
             this.InitializeComponent();
+            DataContext = this;
+
+            App.Current.Suspending += App_Suspending;
+            App.Current.Resuming += App_Resuming;
 
             Timer.OnSecondElapse += Timer_OnSecondElapse;
+        }
+
+        private void App_Resuming(object sender, object e)
+        {
+            Timer.OnSecondElapse += Timer_OnSecondElapse;
+        }
+
+        private void App_Suspending(object sender, Windows.ApplicationModel.SuspendingEventArgs e)
+        {
+            Timer.OnSecondElapse -= Timer_OnSecondElapse;
         }
 
         private void Timer_OnSecondElapse(int remainingHours, int remainingMinutes, int remainingSeconds)
@@ -95,9 +120,10 @@ namespace GameBarTimer
 
         private void Widget_VisibleChanged(XboxGameBarWidget sender, object args)
         {
-            if(sender.Visible && _isTimerDetached)
+            if (sender.Visible && _isTimerDetached)
             {
                 Timer.OnSecondElapse += Timer_OnSecondElapse;
+                _isTimerDetached = false;
             }
             else
             {
@@ -116,18 +142,41 @@ namespace GameBarTimer
                 return;
             }
 
+            if (_isTimerDetached)
+            {
+                Timer.OnSecondElapse += Timer_OnSecondElapse;
+                _isTimerDetached = false;
+            }
+
             Timer.Start(hours, minutes);
 
-            TimerInputPanel.Visibility = Visibility.Collapsed;
-            CountDownStatusPanel.Visibility = Visibility.Visible;
-            StartTimerBtn.Visibility = Visibility.Collapsed;
-
-            StatusTextBlock.Text = "Running";
+            IsTimerRunning = true;
         }
 
         private void RaiseNotifyPropertyChanged([CallerMemberName] string propertyName = "")
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private void StopTimerBtn_Click(object sender, RoutedEventArgs e)
+        {
+            Timer.Stop();
+            Timer.OnSecondElapse -= Timer_OnSecondElapse;
+
+            CountdownHours = "00";
+            CountdownMinutes = "00";
+            CountdownSeconds = "00";
+
+            _isTimerDetached = true;
+            IsTimerRunning = false;
+        }
+
+        private void PauseTimerBtn_Click(object sender, RoutedEventArgs e)
+        {
+            Timer.Pause();
+            Timer.OnSecondElapse -= Timer_OnSecondElapse;
+
+            _isTimerDetached = true;
         }
     }
 }

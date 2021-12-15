@@ -24,9 +24,9 @@ Global
 		x86_Detached|x86 = x86_Detached|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{F3772A10-0E30-45C8-B0CA-73FC7F6BF5B8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{F3772A10-0E30-45C8-B0CA-73FC7F6BF5B8}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{F3772A10-0E30-45C8-B0CA-73FC7F6BF5B8}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
+		{F3772A10-0E30-45C8-B0CA-73FC7F6BF5B8}.Debug|Any CPU.ActiveCfg = Debug|x86
+		{F3772A10-0E30-45C8-B0CA-73FC7F6BF5B8}.Debug|Any CPU.Build.0 = Debug|x86
+		{F3772A10-0E30-45C8-B0CA-73FC7F6BF5B8}.Debug|Any CPU.Deploy.0 = Debug|x86
 		{F3772A10-0E30-45C8-B0CA-73FC7F6BF5B8}.Debug|ARM.ActiveCfg = Debug|ARM
 		{F3772A10-0E30-45C8-B0CA-73FC7F6BF5B8}.Debug|ARM.Build.0 = Debug|ARM
 		{F3772A10-0E30-45C8-B0CA-73FC7F6BF5B8}.Debug|ARM.Deploy.0 = Debug|ARM
