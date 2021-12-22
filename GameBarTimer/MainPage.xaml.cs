@@ -30,6 +30,23 @@ namespace GameBarTimer
     {
         private static bool _isTimerDetached = false;
 
+        private TimerState _timerState = TimerState.Stopped;
+        public TimerState TimerState
+        {
+            get { return _timerState; }
+            set
+            {
+                _timerState = value;
+                RaiseNotifyPropertyChanged();
+                RaiseNotifyPropertyChanged(nameof(ShowTimerCountdown));
+                RaiseNotifyPropertyChanged(nameof(ShowTimerInput));
+                RaiseNotifyPropertyChanged(nameof(IsTimerRunning));
+                RaiseNotifyPropertyChanged(nameof(IsTimerPaused));
+                RaiseNotifyPropertyChanged(nameof(IsTimerStopped));
+                RaiseNotifyPropertyChanged(nameof(IsTimerFinished));
+            }
+        }
+
         private string _countdownHours;
         public string CountdownHours
         {
@@ -63,18 +80,12 @@ namespace GameBarTimer
             }
         }
 
-        private bool _isTimerRunning;
-
-        public bool IsTimerRunning
-        {
-            get { return _isTimerRunning; }
-            set
-            {
-                _isTimerRunning = value;
-                RaiseNotifyPropertyChanged();
-            }
-        }
-
+        public bool ShowTimerCountdown => _timerState != TimerState.Stopped;
+        public bool ShowTimerInput => _timerState == TimerState.Stopped;
+        public bool IsTimerRunning => _timerState == TimerState.Running;
+        public bool IsTimerPaused => _timerState == TimerState.Paused;
+        public bool IsTimerStopped => _timerState == TimerState.Stopped;
+        public bool IsTimerFinished => _timerState == TimerState.Finished;
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -82,28 +93,47 @@ namespace GameBarTimer
         {
             this.InitializeComponent();
             DataContext = this;
+        }
 
-            App.Current.Suspending += App_Suspending;
-            App.Current.Resuming += App_Resuming;
+        private void Timer_OnStateChanged(TimerState state)
+        {
+            TimerState = state;
 
-            Timer.OnSecondElapse += Timer_OnSecondElapse;
+            switch (state)
+            {
+                case TimerState.Running:
+                    break;
+                case TimerState.Paused:
+                    break;
+                case TimerState.Stopped:
+                    break;
+                case TimerState.Finished:
+                    {
+                        SetCountdownOutput(0, 0, 0);
+                        break;
+                    }
+                default:
+                    break;
+            }
         }
 
         private void App_Resuming(object sender, object e)
         {
-            Timer.OnSecondElapse += Timer_OnSecondElapse;
+            AttachTimerSecondElapsedHandler();
         }
 
         private void App_Suspending(object sender, Windows.ApplicationModel.SuspendingEventArgs e)
         {
-            Timer.OnSecondElapse -= Timer_OnSecondElapse;
+            DetachTimerSecondElapsedHandler();
         }
 
-        private void Timer_OnSecondElapse(int remainingHours, int remainingMinutes, int remainingSeconds)
+        private void Timer_OnSecondElapse(long remainingSeconds)
         {
-            CountdownHours = remainingHours.ToString();
-            CountdownMinutes = remainingMinutes.ToString().PadLeft(2, '0');
-            CountdownSeconds = remainingSeconds.ToString().PadLeft(2, '0');
+            var remainingHours = remainingSeconds / 3600;
+            var remainingMinutes = ((remainingSeconds - (remainingHours * 60)) / 60) % 60;
+            remainingSeconds = remainingSeconds % 60;
+
+            SetCountdownOutput(remainingHours, remainingMinutes, remainingSeconds);
         }
 
         protected override void OnNavigatedTo(NavigationEventArgs e)
@@ -116,19 +146,29 @@ namespace GameBarTimer
                     widget.VisibleChanged += Widget_VisibleChanged;
                 }
             }
+
+            Application.Current.Suspending += App_Suspending;
+            Application.Current.Resuming += App_Resuming;
+
+            Timer.OnStateChanged += Timer_OnStateChanged;
+            AttachTimerSecondElapsedHandler();
+        }
+
+        protected override void OnNavigatingFrom(NavigatingCancelEventArgs e)
+        {
+            Application.Current.Suspending -= App_Suspending;
+            Application.Current.Resuming -= App_Resuming;
         }
 
         private void Widget_VisibleChanged(XboxGameBarWidget sender, object args)
         {
             if (sender.Visible && _isTimerDetached)
             {
-                Timer.OnSecondElapse += Timer_OnSecondElapse;
-                _isTimerDetached = false;
+                AttachTimerSecondElapsedHandler();
             }
             else
             {
-                Timer.OnSecondElapse -= Timer_OnSecondElapse;
-                _isTimerDetached = true;
+                DetachTimerSecondElapsedHandler();
             }
         }
 
@@ -144,13 +184,14 @@ namespace GameBarTimer
 
             if (_isTimerDetached)
             {
-                Timer.OnSecondElapse += Timer_OnSecondElapse;
-                _isTimerDetached = false;
+                AttachTimerSecondElapsedHandler();
             }
 
-            Timer.Start(hours, minutes);
+            Timer.OnStateChanged += Timer_OnStateChanged;
 
-            IsTimerRunning = true;
+            SetCountdownOutput(hours, minutes, 0);
+
+            Timer.Start(hours, minutes);
         }
 
         private void RaiseNotifyPropertyChanged([CallerMemberName] string propertyName = "")
@@ -161,22 +202,45 @@ namespace GameBarTimer
         private void StopTimerBtn_Click(object sender, RoutedEventArgs e)
         {
             Timer.Stop();
-            Timer.OnSecondElapse -= Timer_OnSecondElapse;
 
-            CountdownHours = "00";
-            CountdownMinutes = "00";
-            CountdownSeconds = "00";
-
-            _isTimerDetached = true;
-            IsTimerRunning = false;
+            Timer.OnStateChanged -= Timer_OnStateChanged;
+            DetachTimerSecondElapsedHandler();
         }
 
         private void PauseTimerBtn_Click(object sender, RoutedEventArgs e)
         {
             Timer.Pause();
-            Timer.OnSecondElapse -= Timer_OnSecondElapse;
+            DetachTimerSecondElapsedHandler();
+        }
 
+        private void ResumeTimerBtn_Click(object sender, RoutedEventArgs e)
+        {
+            AttachTimerSecondElapsedHandler();
+            Timer.Resume();
+        }
+
+        private void ResetTimerBtn_Click(object sender, RoutedEventArgs e)
+        {
+            TimerState = TimerState.Stopped;
+        }
+
+        private void AttachTimerSecondElapsedHandler()
+        {
+            Timer.OnSecondElapse += Timer_OnSecondElapse;
+            _isTimerDetached = false;
+        }
+
+        private void DetachTimerSecondElapsedHandler()
+        {
+            Timer.OnSecondElapse -= Timer_OnSecondElapse;
             _isTimerDetached = true;
+        }
+
+        private void SetCountdownOutput(long remainingHours, long remainingMinutes, long remainingSeconds)
+        {
+            CountdownHours = remainingHours.ToString().PadLeft(0, '0');
+            CountdownMinutes = remainingMinutes.ToString().PadLeft(2, '0');
+            CountdownSeconds = remainingSeconds.ToString().PadLeft(2, '0');
         }
     }
 }

@@ -37,9 +37,9 @@
                     <Setter Property="Width" Value="60px"></Setter>
                 </Style.Setters>
             </Style>
-            <converter:BooleanSwitchToVisibilityConverter x:Key="BoolToVisiblityConverter"/>
-            <x:Boolean x:Key="True">True</x:Boolean>
-            <x:Boolean x:Key="False">False</x:Boolean>
+            
+            <converter:BoolToVisibilityConverter x:Key="BoolToVisiblityConverter"/>
+            
         </ResourceDictionary>
     </Page.Resources>
 
@@ -53,45 +53,91 @@
             <StackPanel x:Name="TimerActivityPanel" RelativePanel.AlignHorizontalCenterWithPanel="True" RelativePanel.AlignVerticalCenterWithPanel="True" >
 
                 <StackPanel x:Name="TimerInputPanel" Orientation="Horizontal" 
-                            Visibility="{Binding IsTimerRunning, Converter={StaticResource BoolToVisiblityConverter}, ConverterParameter={StaticResource False}}">
+                            Visibility="{x:Bind ShowTimerInput, Mode=OneWay, Converter={StaticResource BoolToVisiblityConverter}}">
                     <TextBox x:Name="HourInputTextBox" PlaceholderText="HH" Style="{StaticResource DurationInputTextBox}"  RequestedTheme="Default" />
                     <TextBox x:Name="MinuteInputTextBox" PlaceholderText="MM" Style="{StaticResource DurationInputTextBox}" />
                 </StackPanel>
 
                 <StackPanel x:Name="TimerStatusPanel" Orientation="Horizontal" 
-                            Visibility="{Binding IsTimerRunning, Converter={StaticResource BoolToVisiblityConverter}, ConverterParameter={StaticResource True}}"
+                            Visibility="{x:Bind ShowTimerCountdown, Mode=OneWay, Converter={StaticResource BoolToVisiblityConverter}}"
                             d:Visibility="Collapsed">
-                    <TextBlock x:Name="CountdownHoursTextBlock" Text="{x:Bind CountdownHours, Mode=OneWay}" Style="{StaticResource RemainingDurationTextBlock}">50</TextBlock>
-                    <TextBlock Style="{StaticResource RemainingDurationTextBlock}" Margin="10,0,10,0">:</TextBlock>
-                    <TextBlock x:Name="CountdownMinutesTextBlock" Text="{x:Bind CountdownMinutes, Mode=OneWay}" Style="{StaticResource RemainingDurationTextBlock}">10</TextBlock>
-                    <TextBlock Style="{StaticResource RemainingDurationTextBlock}" Margin="10,0,10,0">:</TextBlock>
-                    <TextBlock x:Name="CountdownSecondsTextBlock" Text="{x:Bind CountdownSeconds, Mode=OneWay}" Style="{StaticResource RemainingDurationTextBlock}">10</TextBlock>
+
+                    <TextBlock x:Name="CountdownHoursTextBlock" 
+                               Text="{x:Bind CountdownHours, Mode=OneWay}" 
+                               Style="{StaticResource RemainingDurationTextBlock}">
+                    </TextBlock>
+
+                    <TextBlock Style="{StaticResource RemainingDurationTextBlock}" 
+                               Margin="10,0,10,0" 
+                               Text=":">
+                    </TextBlock>
+
+                    <TextBlock x:Name="CountdownMinutesTextBlock" 
+                               Text="{x:Bind CountdownMinutes, Mode=OneWay}" 
+                               Style="{StaticResource RemainingDurationTextBlock}">
+                    </TextBlock>
+
+                    <TextBlock Style="{StaticResource RemainingDurationTextBlock}" 
+                               Margin="10,0,10,0" 
+                               Text=":">
+                    </TextBlock>
+
+                    <TextBlock x:Name="CountdownSecondsTextBlock" 
+                               Text="{x:Bind CountdownSeconds, Mode=OneWay}" 
+                               Style="{StaticResource RemainingDurationTextBlock}">
+                    </TextBlock>
+                    
                     <TextBlock x:Name="StatusTextBlock"></TextBlock>
+                    
                 </StackPanel>
 
             </StackPanel>
 
             <StackPanel x:Name="TimerControlPanel" RelativePanel.Below="TimerActivityPanel" RelativePanel.AlignHorizontalCenterWith="TimerActivityPanel">
 
-                <Button x:Name="StartTimerBtn" Style="{StaticResource TimerControlButton}"
-                        Visibility="{Binding IsTimerRunning, Converter={StaticResource BoolToVisiblityConverter}, ConverterParameter={StaticResource False}}"
+                <StackPanel Visibility="{x:Bind ShowTimerInput, Mode=OneWay, Converter={StaticResource BoolToVisiblityConverter}}">
+                    <Button x:Name="StartTimerBtn" Style="{StaticResource TimerControlButton}"
                         Click="StartTimerBtn_Click">
-                    <Button.Content>
-                        <SymbolIcon Height="60px" Width="60px" Symbol="Play"></SymbolIcon>
-                    </Button.Content>
-                </Button>
+                        <Button.Content>
+                            <SymbolIcon Height="60px" Width="60px" Symbol="Play"></SymbolIcon>
+                        </Button.Content>
+                    </Button>
+                </StackPanel>
 
                 <StackPanel Orientation="Horizontal" 
-                            Visibility="{Binding IsTimerRunning, Converter={StaticResource BoolToVisiblityConverter}, ConverterParameter={StaticResource True}}"
+                            Visibility="{x:Bind ShowTimerCountdown, Mode=OneWay, Converter={StaticResource BoolToVisiblityConverter}}"
                             d:Visibility="Collapsed">
-                    <Button x:Name="PauseTimerBtn" Style="{StaticResource TimerControlButton}" Click="PauseTimerBtn_Click">
+                    <Button x:Name="PauseTimerBtn" 
+                            Style="{StaticResource TimerControlButton}" 
+                            Click="PauseTimerBtn_Click"
+                            Visibility="{x:Bind IsTimerRunning, Mode=OneWay, Converter={StaticResource BoolToVisiblityConverter}}">
                         <Button.Content>
                             <SymbolIcon Style="{StaticResource TimerControlBtnSymbolIcon}" Symbol="Pause"></SymbolIcon>
                         </Button.Content>
                     </Button>
-                    <Button x:Name="StopTimerBtn" Margin="10" Style="{StaticResource TimerControlButton}" Click="StopTimerBtn_Click">
+                    <Button x:Name="ResumeTimerBtn" 
+                            Style="{StaticResource TimerControlButton}" 
+                            Click="ResumeTimerBtn_Click"
+                            Visibility="{x:Bind IsTimerPaused, Mode=OneWay, Converter={StaticResource BoolToVisiblityConverter}}">
+                        <Button.Content>
+                            <SymbolIcon Style="{StaticResource TimerControlBtnSymbolIcon}" Symbol="Play"></SymbolIcon>
+                        </Button.Content>
+                    </Button>
+                    <Button x:Name="StopTimerBtn" 
+                            Style="{StaticResource TimerControlButton}" 
+                            Visibility="{x:Bind IsTimerRunning, Mode=OneWay, Converter={StaticResource BoolToVisiblityConverter}}"
+                            Click="StopTimerBtn_Click">
                         <Button.Content>
                             <SymbolIcon Style="{StaticResource TimerControlBtnSymbolIcon}" Symbol="Stop"></SymbolIcon>
+                        </Button.Content>
+                    </Button>
+                    <Button x:Name="ResetTimerBtn" 
+                            Margin="10" 
+                            Style="{StaticResource TimerControlButton}" 
+                            Visibility="{x:Bind IsTimerFinished, Mode=OneWay, Converter={StaticResource BoolToVisiblityConverter}}"
+                            Click="ResetTimerBtn_Click">
+                        <Button.Content>
+                            <SymbolIcon Style="{StaticResource TimerControlBtnSymbolIcon}" Symbol="Undo"></SymbolIcon>
                         </Button.Content>
                     </Button>
                 </StackPanel>

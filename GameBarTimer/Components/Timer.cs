@@ -14,19 +14,16 @@ namespace GameBarTimer.Components
         private static readonly string TIMER_SUSPEND_TIMESTAMP_SETTING_KEY = "timerSuspendTimestamp";
 
         private static DispatcherTimer _dispatcherTimer;
+
         private static int _durationInSeconds;
-        private static int _remainingHours;
-        private static int _remainingMinutes;
         private static int _remainingSeconds;
 
-        public static event Action<int, int, int> OnSecondElapse;
-        public static event Action OnTimerStop;
-        public static event Action OnTimerFinish;
+        public static event Action<long> OnSecondElapse;
+        public static event Action<TimerState> OnStateChanged;
 
         static Timer()
         {
-            Application.Current.Suspending += App_Suspending;
-            Application.Current.Resuming += App_Resuming;
+            AttachApplicationEventHandlers();
         }
 
         private static void App_Resuming(object sender, object e)
@@ -53,10 +50,11 @@ namespace GameBarTimer.Components
             var suspendDateTime = DateTimeOffset.FromUnixTimeSeconds((long)suspendTimestampInSeconds);
             var elapsedSecondsCount = DateTimeOffset.Now.Subtract(suspendDateTime).TotalSeconds;
 
-            var remainingDurationInSeconds = _durationInSeconds - elapsedSecondsCount;
-            var remainingHours = (int)remainingDurationInSeconds / 3600;
-            var remainingMinutes = (int)(remainingDurationInSeconds - (remainingHours * 60)) / 60;
-            var remainingSeconds = (int)remainingDurationInSeconds % 60;
+            _remainingSeconds = _durationInSeconds - (int)elapsedSecondsCount;
+
+            var remainingHours = _remainingSeconds / 3600;
+            var remainingMinutes = (_remainingSeconds - (remainingHours * 60)) / 60;
+            var remainingSeconds = _remainingSeconds % 60;
 
             Start(remainingHours, remainingMinutes, remainingSeconds);
         }
@@ -83,13 +81,11 @@ namespace GameBarTimer.Components
             ClearSavedTimerState();
 
             _durationInSeconds = hours * 3600 + minutes * 60;
-
-            _remainingHours = hours;
-            _remainingMinutes = minutes;
-            _remainingSeconds = seconds;
+            _remainingSeconds = _durationInSeconds;
 
             _dispatcherTimer.Start();
-            OnSecondElapse?.Invoke(_remainingHours, _remainingMinutes, _remainingSeconds);
+
+            OnStateChanged?.Invoke(TimerState.Running);
         }
 
         public static void Stop()
@@ -100,8 +96,9 @@ namespace GameBarTimer.Components
             Application.Current.Resuming -= App_Resuming;
 
             ClearSavedTimerState();
+            DettachApplicationEventHandlers();
 
-            OnTimerStop?.Invoke();
+            OnStateChanged?.Invoke(TimerState.Stopped);
         }
 
         public static void Pause()
@@ -109,8 +106,14 @@ namespace GameBarTimer.Components
             _dispatcherTimer.Stop();
             SaveTimerState();
 
-            Application.Current.Suspending -= App_Suspending;
-            Application.Current.Resuming -= App_Resuming;
+            OnStateChanged?.Invoke(TimerState.Paused);
+        }
+
+        public static void Resume()
+        {
+            _dispatcherTimer.Start();
+
+            OnStateChanged?.Invoke(TimerState.Running);
         }
 
         private static void ClearSavedTimerState()
@@ -133,34 +136,32 @@ namespace GameBarTimer.Components
 
         private static void DispatcherTimer_Tick(object sender, object e)
         {
-            _remainingSeconds = _remainingSeconds - 1;
-
-            if (_remainingSeconds == 0 && _remainingMinutes == 0 && _remainingHours == 0)
+            _remainingSeconds -= 1;
+            if(_remainingSeconds == 0)
             {
                 FinishTimer();
                 return;
             }
 
-            if (_remainingSeconds == -1)
-            {
-                _remainingMinutes = _remainingMinutes - 1;
-
-                if (_remainingMinutes == -1)
-                {
-                    _remainingHours = Math.Max(_remainingHours - 1, 0);
-                    _remainingMinutes = 59;
-                }
-
-                _remainingSeconds = 59;
-            }
-
-            OnSecondElapse?.Invoke(_remainingHours, _remainingMinutes, _remainingSeconds);
+            OnSecondElapse?.Invoke(_remainingSeconds);
         }
 
         private static void FinishTimer()
         {
             _dispatcherTimer.Stop();
-            OnTimerFinish?.Invoke();
+            OnStateChanged?.Invoke(TimerState.Finished);
+        }
+
+        private static void AttachApplicationEventHandlers()
+        {
+            Application.Current.Suspending += App_Suspending;
+            Application.Current.Resuming += App_Resuming;
+        }
+        
+        private static void DettachApplicationEventHandlers()
+        {
+            Application.Current.Suspending -= App_Suspending;
+            Application.Current.Resuming -= App_Resuming;
         }
     }
 }
